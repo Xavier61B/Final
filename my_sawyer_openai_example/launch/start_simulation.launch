@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+    <include file="$(find sawyer_gazebo)/launch/sawyer_world.launch"/>
+</launch>
+ 
