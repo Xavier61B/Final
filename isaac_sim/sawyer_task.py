@@ -62,14 +62,13 @@ class SawyerTask(BaseTask):
         set_camera_view(eye=camera_position, target=camera_target, camera_prim_path="/OmniverseKit_Persp")
 
     def post_reset(self):
-        self._j0_dof_idx = self._sawyer.get_dof_index("right_l0")
-        self._j1_dof_idx = self._sawyer.get_dof_index("right_l1")
-        self._j2_dof_idx = self._sawyer.get_dof_index("right_l2")
-        self._j3_dof_idx = self._sawyer.get_dof_index("right_l3")
-        self._j4_dof_idx = self._sawyer.get_dof_index("right_l4")
-        self._j5_dof_idx = self._sawyer.get_dof_index("right_l5")
-        self._j6_dof_idx = self._sawyer.get_dof_index("right_l6")
-        self._hand_dof_idx = self._sawyer.get_dof_index("right_hand")
+        self._j0_dof_idx = self._sawyer.get_dof_index("right_j0")
+        self._j1_dof_idx = self._sawyer.get_dof_index("right_j1")
+        self._j2_dof_idx = self._sawyer.get_dof_index("right_j2")
+        self._j3_dof_idx = self._sawyer.get_dof_index("right_j3")
+        self._j4_dof_idx = self._sawyer.get_dof_index("right_j4")
+        self._j5_dof_idx = self._sawyer.get_dof_index("right_j5")
+        self._j6_dof_idx = self._sawyer.get_dof_index("right_j6")
         # randomize all envs
         indices = torch.arange(self._sawyer.count, dtype=torch.int64, device=self._device)
         self.reset(indices)
@@ -87,11 +86,11 @@ class SawyerTask(BaseTask):
         dof_pos[:, self._j3_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
         dof_pos[:, self._j4_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
         dof_pos[:, self._j5_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j6_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
+        dof_pos[:, self._j6_dof_idx] = 0
         
         # set hand pose
-        hand_pos = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device) 
-        hand_pos[:, self._hand_dof_idx] = [0,0,0,-1]  
+
+        self._sawyer.set_world_poses(None, torch.tensor([[0,0,0,-1]]), torch.tensor([self._j6_dof_idx]))
         
         # randomize DOF velocities
         dof_vel = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)
