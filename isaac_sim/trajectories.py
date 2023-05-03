@@ -186,14 +186,15 @@ class LinearTrajectory(Trajectory):
         pos_goal = 0
         tfrac = time/self.total_time
 
-        if tfrac <= .2:
-            pos_goal = self.max_vel / (.4 * self.total_time) * time ** 2
-        elif tfrac <= .8:
-            pos_goal = self.max_vel * (time - .2 * self.total_time) + .125 * self.dist
-        elif tfrac <= 1:
-            pos_goal = self.m * (time ** 2 / 2 - time * self.total_time - .32 * self.total_time ** 2 + .8 * self.total_time ** 2) + .875 * self.dist
-        else:
-            pos_goal = self.dist
+        if tfrac > 0:
+            if tfrac <= .2:
+                pos_goal = self.max_vel / (.4 * self.total_time) * time ** 2
+            elif tfrac <= .8:
+                pos_goal = self.max_vel * (time - .2 * self.total_time) + .125 * self.dist
+            elif tfrac <= 1:
+                pos_goal = self.m * (time ** 2 / 2 - time * self.total_time - .32 * self.total_time ** 2 + .8 * self.total_time ** 2) + .875 * self.dist
+            else:
+                pos_goal = self.dist
 
         return np.concatenate((self.start + pos_goal * self.dir, [0, 1, 0, 0]), axis=None)
 
@@ -238,7 +239,7 @@ class CircularTrajectory(Trajectory):
         ????? You're going to have to fill these in how you see fit
         """
         Trajectory.__init__(self, total_time)
-        self.center_position = center_position
+        self.center_position = center_position.flatten()
         self.radius = radius
         self.dist = 2 * np.pi
 
@@ -266,10 +267,11 @@ class CircularTrajectory(Trajectory):
             desired configuration in workspace coordinates of the end effector
         """
 
+
         angle = self.get_theta(time)
         pos_x = self.radius * np.cos(angle) + self.center_position[0]
         pos_y = self.radius * np.sin(angle) + self.center_position[1]
-        return np.array([pos_x,pos_y,0,0,1,0,0])
+        return np.array([pos_x,pos_y,self.center_position[2],0,1,0,0])
 
     def get_theta(self, time):
         angle = 0
@@ -330,13 +332,18 @@ class PolygonalTrajectory(Trajectory):
         """
         self.sub_time = total_time/len(points)
         Trajectory.__init__(self, total_time)
+        print("Points:")
+        print(points)
         self.points = np.concatenate((points, [points[0]]), axis=0)
-
     def update_val(self, time):
+        print("Time:",time)
+        if (time < 0):
+            time = 0
         index = math.floor(time/self.sub_time)
         if index > len(self.points) - 2:
             index = len(self.points) - 2
-
+        print(self.points)
+        print(index)
         self.start = self.points[index]
         self.goal = self.points[index + 1]
 
