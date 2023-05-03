@@ -74,7 +74,6 @@ class SawyerTask(BaseTask):
         set_camera_view(eye=camera_position, target=camera_target, camera_prim_path="/OmniverseKit_Persp")
 
     def post_reset(self):
-
         self._joint_indices = torch.zeros(7)
 
         para = "right_j"
@@ -146,35 +145,19 @@ class SawyerTask(BaseTask):
         hand_vel = self._hand.get_linear_velocity()
 
         # collect pole and cart joint positions and velocities for observation
-        j0_pos = dof_pos[:, self._j0_dof_idx]
-        j0_vel = dof_vel[:, self._j0_dof_idx]
-        j1_pos = dof_pos[:, self._j1_dof_idx]
-        j1_vel = dof_vel[:, self._j1_dof_idx]
-        j2_pos = dof_pos[:, self._j2_dof_idx]
-        j2_vel = dof_vel[:, self._j2_dof_idx]
-        j3_pos = dof_pos[:, self._j3_dof_idx]
-        j3_vel = dof_vel[:, self._j3_dof_idx]
-        j4_pos = dof_pos[:, self._j4_dof_idx]
-        j4_vel = dof_vel[:, self._j4_dof_idx]
-        j5_pos = dof_pos[:, self._j5_dof_idx]
-        j5_vel = dof_vel[:, self._j5_dof_idx]
-        j6_pos = dof_pos[:, self._j6_dof_idx]
-        j6_vel = dof_vel[:, self._j6_dof_idx]
+        j_vel = torch.zeros(7)
+        j_pos = torch.zeros(7)
+        for i in range(7):
+            jo = self._joint_indices[i]
 
-        self.obs[:, 0] = j0_pos
-        self.obs[:, 1] = j0_vel
-        self.obs[:, 2] = j1_pos
-        self.obs[:, 3] = j1_vel
-        self.obs[:, 4] = j2_pos
-        self.obs[:, 5] = j2_vel
-        self.obs[:, 6] = j3_pos
-        self.obs[:, 7] = j3_vel
-        self.obs[:, 8] = j4_pos
-        self.obs[:, 9] = j4_vel
-        self.obs[:, 10] = j5_pos
-        self.obs[:, 11] = j5_vel
-        self.obs[:, 12] = j6_pos
-        self.obs[:, 13] = j6_vel
+            j_pos[i] = dof_pos[:, jo]
+            j_vel[i] = dof_vel[:, jo]
+
+        for i in range(7):
+            ind = 2 * i
+            self.obs[:, ind] = j_pos[i]
+            self.obs[:, ind+1] = j_vel[i]
+
         self.obs[:, 14] = hand_pos[1][0]
         self.obs[:, 15] = hand_pos[1][1]
         self.obs[:, 16] = hand_pos[1][2]
@@ -191,24 +174,13 @@ class SawyerTask(BaseTask):
     def calculate_metrics(self) -> None:
         j_vel = torch.zeros(7)
         j_pos = torch.zeros(7)
+        for i in range(7):
+            ind = 2 * i
+            j_pos[i] = self.obs[:, ind]
+            j_vel[i] = self.obs[:, ind+1]
 
-        j_pos[0] = self.obs[:, 0]
-        j_vel[0] = self.obs[:, 1]
-        j_pos[1] = self.obs[:, 2]
-        j_vel[1] = self.obs[:, 3]
-        j_pos[2] = self.obs[:, 4]
-        j_vel[2] = self.obs[:, 5]
-        j_pos[3] = self.obs[:, 6]
-        j_vel[3] = self.obs[:, 7]
-        j_pos[4] = self.obs[:, 8]
-        j_vel[4] = self.obs[:, 9]
-        j_pos[5] = self.obs[:, 10]
-        j_vel[5] = self.obs[:, 11]
-        j_pos[6] = self.obs[:, 12]
-        j_vel[6] = self.obs[:, 13]
 
         hand_pos = torch.zeros(7)
-
         hand_pos[0] = self.obs[:, 14]
         hand_pos[1] = self.obs[:, 15]
         hand_pos[2] = self.obs[:, 16]
@@ -218,7 +190,6 @@ class SawyerTask(BaseTask):
         hand_pos[6] = self.obs[:, 20]
 
         hand_vel = torch.zeros(3)
-
         hand_vel[0] = self.obs[:, 21]
         hand_vel[1] = self.obs[:, 22] 
         hand_vel[2] = self.obs[:, 23]
