@@ -201,8 +201,8 @@ class SawyerTask(BaseTask):
         pd = self.trajectory.target_pose(time)
         vd = self.trajectory.target_velocity(time)
 
-        pe = hand_pos - pd
-        ve = hand_vel - vd
+        pe = torch.sum(torch.abs(hand_pos - pd))
+        ve = torch.sum(torch.abs(hand_vel - vd))
 
         # compute reward based on gripper pose and position vs trajectory, use get_current_time() and self.start_time
         klog = lambda x, l: 2 / (torch.exp(x * l) + torch.exp(-x * l))
