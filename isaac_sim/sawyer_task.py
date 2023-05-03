@@ -238,17 +238,19 @@ class SawyerTask(BaseTask):
         reward = self.w * klog(pe, self.l) + (1 - self.w) * klog(ve, self.l)
 
         # compute penalty if dof limits near exceeded, use get_dof_limits
-        reward = torch.where(torch.max(torch.abs(j_vel)) > torch.ones_like(reward) * -2.0, 1, reward)
+        reset = False
+        limits = self._sawyer.get_dof_limits()
+        for i in range(7):
+            jo = self._joint_indices[i]
+            if (limits[:, jo, 1] < j_pos[i]) or (limits[:, jo, 0] > j_pos[i]):
+                reset = True
+                break
+        reward = torch.where(reset, torch.ones_like(reward) * -2.0, reward)
+
+        reward = torch.where(torch.max(torch.abs(j_vel)) > self._reset_vel, torch.ones_like(reward) * -2.0, reward)
 
 
         # compute penalty if jacobian is near singular, use get_jacobians
-
-        # compute reward based on angle of pole and cart velocity
-        reward = 1.0 - pole_angle * pole_angle - 0.01 * torch.abs(cart_vel) - 0.005 * torch.abs(pole_vel)
-        # apply a penalty if cart is too far from center
-        reward = torch.where(torch.abs(cart_pos) > self._reset_dist, torch.ones_like(reward) * -2.0, reward)
-        # apply a penalty if pole is too far from upright
-        reward = torch.where(torch.abs(pole_angle) > np.pi / 2, torch.ones_like(reward) * -2.0, reward)
 
         return reward.item()
 
@@ -272,14 +274,19 @@ class SawyerTask(BaseTask):
         j_vel[6] = self.obs[:, 13]
 
         limits = self._sawyer.get_dof_limits()
+        reset = False
+        for i in range(7):
+            jo = self._joint_indices[i]
+            if (limits[:, jo, 1] < j_pos[i]) or (limits[:, jo, 0] > j_pos[i]):
+                reset = True
+                break
+
+        time = torch.tensor(get_current_time() - self.start_time)
 
         # reset if sawyer joint velocities too high, dof limits exceeded, or trajectory finished
         resets = torch.where(torch.max(torch.abs(j_vel)) > self._reset_vel, 1, 0)
-        torch.where()
-
-        # reset the robot if cart has reached reset_dist or pole is too far from upright
-        resets = torch.where(torch.abs(cart_pos) > self._reset_dist, 1, 0)
-        resets = torch.where(torch.abs(pole_pos) > math.pi / 2, 1, resets)
+        resets = torch.where(reset, 1, resets)
+        resets = torch.where(time > 5.1, 1, resets)
         self.resets = resets
 
         return resets.item()
