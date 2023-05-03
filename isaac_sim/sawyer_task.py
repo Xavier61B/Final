@@ -85,13 +85,13 @@ class SawyerTask(BaseTask):
 
         # randomize DOF positions
         dof_pos = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)
-        dof_pos[:, self._j0_dof_idx] = (self._sawyer.get_dof_limits("right_j0")[0] - self._sawyer.get_dof_limits("right_j0")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j0")[1]
-        dof_pos[:, self._j1_dof_idx] = (self._sawyer.get_dof_limits("right_j1")[0] - self._sawyer.get_dof_limits("right_j1")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j1")[1]
-        dof_pos[:, self._j2_dof_idx] = (self._sawyer.get_dof_limits("right_j2")[0] - self._sawyer.get_dof_limits("right_j2")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j2")[1]
-        dof_pos[:, self._j3_dof_idx] = (self._sawyer.get_dof_limits("right_j3")[0] - self._sawyer.get_dof_limits("right_j3")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j3")[1]
-        dof_pos[:, self._j4_dof_idx] = (self._sawyer.get_dof_limits("right_j4")[0] - self._sawyer.get_dof_limits("right_j4")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j4")[1]
-        dof_pos[:, self._j5_dof_idx] = (self._sawyer.get_dof_limits("right_j5")[0] - self._sawyer.get_dof_limits("right_j5")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j5")[1]
-        dof_pos[:, self._j6_dof_idx] = (self._sawyer.get_dof_limits("right_j6")[0] - self._sawyer.get_dof_limits("right_j6")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j6")[1]
+        dof_pos[:, self._j0_dof_idx] = (self._sawyer.get_dof_limits("right_j0")[0] - self._sawyer.get_dof_limits("right_j0")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j0")[1]
+        dof_pos[:, self._j1_dof_idx] = (self._sawyer.get_dof_limits("right_j1")[0] - self._sawyer.get_dof_limits("right_j1")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j1")[1]
+        dof_pos[:, self._j2_dof_idx] = (self._sawyer.get_dof_limits("right_j2")[0] - self._sawyer.get_dof_limits("right_j2")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j2")[1]
+        dof_pos[:, self._j3_dof_idx] = (self._sawyer.get_dof_limits("right_j3")[0] - self._sawyer.get_dof_limits("right_j3")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j3")[1]
+        dof_pos[:, self._j4_dof_idx] = (self._sawyer.get_dof_limits("right_j4")[0] - self._sawyer.get_dof_limits("right_j4")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j4")[1]
+        dof_pos[:, self._j5_dof_idx] = (self._sawyer.get_dof_limits("right_j5")[0] - self._sawyer.get_dof_limits("right_j5")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j5")[1]
+        dof_pos[:, self._j6_dof_idx] = (self._sawyer.get_dof_limits("right_j6")[0] - self._sawyer.get_dof_limits("right_j6")[1]) * torch.rand(num_resets, device=self._device) + self._sawyer.get_dof_limits("right_j6")[1]
 
         # zero all DOF velocities
         dof_vel = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)
