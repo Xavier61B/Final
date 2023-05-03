@@ -22,7 +22,7 @@ env.set_task(task, backend="torch")
 from stable_baselines3 import PPO
 
 # Run inference on the trained policy
-model = PPO.load("sawyer_cartpole")
+model = PPO.load("ppo_sawyer")
 env._world.reset()
 obs = env.reset()
 while env._simulation_app.is_running():
