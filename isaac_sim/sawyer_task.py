@@ -46,7 +46,7 @@ class SawyerTask(BaseTask):
         # retrieve file path for the Sawyer USD file
         assets_root_path = get_assets_root_path()
         usd_path = assets_root_path + "/Isaac/Robots/RethinkRobotics/sawyer_instanceable.usd"
-        
+
         # add the Sawyer USD to our stage
         create_prim(prim_path="/World/Sawyer", prim_type="Xform", position=self._sawyer_position)
         add_reference_to_stage(usd_path, "/World/Sawyer")
@@ -85,16 +85,15 @@ class SawyerTask(BaseTask):
 
         # randomize DOF positions
         dof_pos = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)
-        dof_pos[:, self._j0_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j1_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j2_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j3_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j4_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j5_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        dof_pos[:, self._j6_dof_idx] = np.pi * (1.0 * (1.0 - 2.0 * torch.rand(num_resets, device=self._device)))
-        
-        
-        # zero DOF velocities
+        dof_pos[:, self._j0_dof_idx] = (self._sawyer.get_dof_limits("right_j0")[0] - self._sawyer.get_dof_limits("right_j0")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j0")[1]
+        dof_pos[:, self._j1_dof_idx] = (self._sawyer.get_dof_limits("right_j1")[0] - self._sawyer.get_dof_limits("right_j1")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j1")[1]
+        dof_pos[:, self._j2_dof_idx] = (self._sawyer.get_dof_limits("right_j2")[0] - self._sawyer.get_dof_limits("right_j2")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j2")[1]
+        dof_pos[:, self._j3_dof_idx] = (self._sawyer.get_dof_limits("right_j3")[0] - self._sawyer.get_dof_limits("right_j3")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j3")[1]
+        dof_pos[:, self._j4_dof_idx] = (self._sawyer.get_dof_limits("right_j4")[0] - self._sawyer.get_dof_limits("right_j4")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j4")[1]
+        dof_pos[:, self._j5_dof_idx] = (self._sawyer.get_dof_limits("right_j5")[0] - self._sawyer.get_dof_limits("right_j5")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j5")[1]
+        dof_pos[:, self._j6_dof_idx] = (self._sawyer.get_dof_limits("right_j6")[0] - self._sawyer.get_dof_limits("right_j6")[1]) * torch.rand(num_resets, device=self._device))) + self._sawyer.get_dof_limits("right_j6")[1]
+
+        # zero all DOF velocities
         dof_vel = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)
 
         # apply resets
@@ -104,6 +103,8 @@ class SawyerTask(BaseTask):
 
         # bookkeeping
         self.resets[env_ids] = 0
+
+        self.start_time = get_current_time()
 
     def pre_physics_step(self, actions) -> None:
         reset_env_ids = self.resets.nonzero(as_tuple=False).squeeze(-1)
@@ -171,7 +172,7 @@ class SawyerTask(BaseTask):
         self.obs[:, 19] = hand_pos[0][1]
         self.obs[:, 20] = hand_pos[0][2]
         return self.obs
-    
+
     def calculate_metrics(self) -> None:
         j0_pos = self.obs[:, 0]
         j0_vel = self.obs[:, 1]
@@ -201,7 +202,7 @@ class SawyerTask(BaseTask):
         hand_pos[2] = self.obs[:, 20]
 
         # compute penalty based on joint velocities
-        
+
 
         # compute reward based on gripper pose and position vs trajectory, use get_current_time() and self.start_time
 
@@ -217,7 +218,7 @@ class SawyerTask(BaseTask):
         reward = torch.where(torch.abs(pole_angle) > np.pi / 2, torch.ones_like(reward) * -2.0, reward)
 
         return reward.item()
-    
+
     def is_done(self) -> None:
         j_vel = torch.zeros(7)
 
