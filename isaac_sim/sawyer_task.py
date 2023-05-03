@@ -41,11 +41,11 @@ class SawyerTask(BaseTask):
         self.observation_space = spaces.Box(np.ones(self._num_observations) * -np.Inf, np.ones(self._num_observations) * np.Inf)
 
         # logistic smoothing kernel sensitiity parameter and relevance parameter for position vs velocity tracking
-        self.l = 0.5
+        self.l = 15
         self.w = 0.75
 
         # reset max joint velocity
-        self._reset_vel = 1.328
+        self._reset_vel = 100000 #1.328
         self.pre_pos = torch.zeros(3)
         self.first_time = True
         # trigger __init__ of parent class
@@ -71,7 +71,7 @@ class SawyerTask(BaseTask):
         # set default camera viewport position and target
         self.set_initial_camera_params()
 
-    def set_initial_camera_params(self, camera_position=[5, 5, 2], camera_target=[0, 0, 0]):
+    def set_initial_camera_params(self, camera_position=[3, 3, 1], camera_target=[0, 0, 0]):
         set_camera_view(eye=camera_position, target=camera_target, camera_prim_path="/OmniverseKit_Persp")
 
     def post_reset(self):
@@ -111,9 +111,9 @@ class SawyerTask(BaseTask):
         # bookkeeping
         self.resets[env_ids] = 0
         self.start_time = self.simulation.current_time
-        x = np.random.rand(2,1) * 20 - 10
-        y = np.random.rand(2,1) * 15 + 5
-        z = np.random.rand(2,1) * 12 + 3
+        x = np.random.rand(2,1) * 2 - 1
+        y = np.random.rand(2,1) * 2 - 1
+        z = np.random.rand(2,1) * 2 - 1
 
         pt = np.hstack((x, y ,z))
         self.trajectory = LinearTrajectory(pt[0], pt[1], 5)
@@ -247,8 +247,8 @@ class SawyerTask(BaseTask):
 
         # reset if sawyer joint velocities too high, dof limits exceeded, or trajectory finished
         resets = torch.where(torch.max(torch.abs(j_vel)) > self._reset_vel, 1, 0)
-        resets = torch.where(reset, 1, resets)
+        #resets = torch.where(reset, 1, resets)
         resets = torch.where(time > 5.1, 1, resets)
-        self.resets = resets
+        self.resets = torch.tensor([[resets.item()]])
 
         return resets.item()

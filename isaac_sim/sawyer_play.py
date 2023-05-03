@@ -27,5 +27,5 @@ env._world.reset()
 obs = env.reset()
 while env._simulation_app.is_running():
     action, _states = model.predict(obs)
-    obs, rewards, dones, info = env.step(action)
+    obs, rewards, dones, info = env.step(action[0])
 env.close()
