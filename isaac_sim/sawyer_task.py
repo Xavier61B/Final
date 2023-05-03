@@ -228,21 +228,10 @@ class SawyerTask(BaseTask):
     def is_done(self) -> None:
         j_vel = torch.zeros(7)
         j_pos = torch.zeros(7)
-
-        j_pos[0] = self.obs[:, 0]
-        j_vel[0] = self.obs[:, 1]
-        j_pos[1] = self.obs[:, 2]
-        j_vel[1] = self.obs[:, 3]
-        j_pos[2] = self.obs[:, 4]
-        j_vel[2] = self.obs[:, 5]
-        j_pos[3] = self.obs[:, 6]
-        j_vel[3] = self.obs[:, 7]
-        j_pos[4] = self.obs[:, 8]
-        j_vel[4] = self.obs[:, 9]
-        j_pos[5] = self.obs[:, 10]
-        j_vel[5] = self.obs[:, 11]
-        j_pos[6] = self.obs[:, 12]
-        j_vel[6] = self.obs[:, 13]
+        for i in range(7):
+            ind = 2 * i
+            j_pos[i] = self.obs[:, ind]
+            j_vel[i] = self.obs[:, ind+1]
 
         limits = self._sawyer.get_dof_limits()
         reset = False
