@@ -25,7 +25,7 @@ from stable_baselines3 import PPO
 model = PPO(
     "MlpPolicy",
     env,
-    n_steps=500,
+    n_steps=250,
     batch_size=250,
     n_epochs=20,
     learning_rate=0.001,
@@ -37,7 +37,7 @@ model = PPO(
     verbose=1,
     tensorboard_log="./sawyer_tensorboard",
 )
-model.learn(total_timesteps=1000000)
+model.learn(total_timesteps=500000)
 model.save("ppo_sawyer")
 
 env.close()
