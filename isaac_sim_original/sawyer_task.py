@@ -26,7 +26,7 @@ class SawyerTask(BaseTask):
         self._sawyer_position = [0.0, 0.0, 1]
 
         # values used for defining RL buffers
-        self._num_observations = 34
+        self._num_observations = 41
         self._num_actions = 7
         self._device = "cpu"
         self.num_envs = 1
@@ -40,8 +40,9 @@ class SawyerTask(BaseTask):
         self.observation_space = spaces.Box(np.ones(self._num_observations) * -np.Inf, np.ones(self._num_observations) * np.Inf)
 
         # logistic smoothing kernel sensitiity parameter and relevance parameter for position vs velocity tracking
-        self.l1 = 4
-        self.l2 = 1
+        self.l1 = 10
+        self.l2 = 3
+        self.l3 = 20
         self.w = 0.6
 
         # reset max joint velocity
@@ -105,10 +106,10 @@ class SawyerTask(BaseTask):
             jo = int(self._joint_indices[i].item())
             upper = self._sawyer.get_dof_limits()[:, jo, 1]
             lower = self._sawyer.get_dof_limits()[:, jo, 0]
-            dof_pos[:, jo] = torch.tensor([tuck[i]]) #(upper - lower) * torch.rand(num_resets, device=self._device) + lower
+            dof_pos[:, jo] = torch.tensor([tuck[i]]) + torch.rand(1) * 0.04 - 0.02 #(upper - lower) * torch.rand(num_resets, device=self._device) + lower
 
         # zero all DOF velocities
-        dof_vel = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)
+        dof_vel = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device) + (torch.rand(8) * 0.2 - 0.1)
 
         # apply resets
         indices = env_ids.to(dtype=torch.int32)
@@ -124,7 +125,8 @@ class SawyerTask(BaseTask):
         z = np.random.rand(2,1) * 0.5 + 0.25
 
         pt = np.hstack((x, y ,z))
-        self.trajectory = LinearTrajectory(hand_pos, hand_pos + np.array([0, 1, 0]), 5)
+        self.trajectory = LinearTrajectory(hand_pos, hand_pos + np.array([0.2, 0.0, -0.2]), 5)
+        self.pforces = torch.zeros(7)
 
     def pre_physics_step(self, actions) -> None:
         time = self.simulation.current_time - self.start_time
@@ -142,16 +144,14 @@ class SawyerTask(BaseTask):
         # add indexes to max_torque based on correct joints
         for i in range(7):
             forces[:, i] = self._max_torque[0][i] * actions[i] #* force_multiplier[i]
-
-        indices = torch.arange(self._sawyer.count, dtype=torch.int32, device=self._device)
         self._sawyer.set_joint_efforts(forces, joint_indices=self._joint_indices)
 
     def get_observations(self):
-        dof_pos = self._sawyer.get_joint_positions()
-        dof_pos = dof_pos[:,self._joint_indices]
+        dof_pos_total = self._sawyer.get_joint_positions()
+        dof_pos = dof_pos_total[:,self._joint_indices]
         
-        dof_vel = self._sawyer.get_joint_velocities()
-        dof_vel = dof_vel[:,self._joint_indices]
+        dof_vel_total = self._sawyer.get_joint_velocities()
+        dof_vel = dof_vel_total[:,self._joint_indices]
 
         hand_pos = self._hand.get_world_pose()
         time = self.simulation.current_time - self.start_time
@@ -165,7 +165,7 @@ class SawyerTask(BaseTask):
 
         self.pre_pos = hand_pos[0]
 
-        # collect pole and cart joint positions and velocities for observation
+        # collect Sawyer joint positions and velocities for observation
         j_vel = torch.zeros(7)
         j_pos = torch.zeros(7)
         for i in range(7):
@@ -176,28 +176,16 @@ class SawyerTask(BaseTask):
             ind = 2 * i
             self.obs[:, ind] = j_pos[i]
             self.obs[:, ind+1] = j_vel[i]
+
         pd = self.trajectory.target_pose(time)
-        vd = self.trajectory.target_velocity(time)
-        self.obs[:, 14] = hand_pos[0][0]
-        self.obs[:, 15] = hand_pos[0][1]
-        self.obs[:, 16] = hand_pos[0][2]
-        self.obs[:, 17] = hand_pos[1][0]
-        self.obs[:, 18] = hand_pos[1][1]
-        self.obs[:, 19] = hand_pos[1][2]
-        self.obs[:, 20] = hand_pos[1][3]
-        self.obs[:, 21] = hand_vel[0]
-        self.obs[:, 22] = hand_vel[1]
-        self.obs[:, 23] = hand_vel[2]
-        self.obs[:, 24] = pd[0]
-        self.obs[:, 25] = pd[1]
-        self.obs[:, 26] = pd[2]
-        self.obs[:, 27] = pd[3]
-        self.obs[:, 28] = pd[4]
-        self.obs[:, 29] = pd[5]
-        self.obs[:, 30] = pd[6]
-        self.obs[:, 31] = vd[0]
-        self.obs[:, 32] = vd[1]
-        self.obs[:, 33] = vd[2]
+        vd = self.trajectory.target_velocity(time)[0:3]
+
+        self.obs[:, 14:17] = hand_pos[0]
+        self.obs[:, 17:21] = hand_pos[1]
+        self.obs[:, 21:24] = hand_vel
+        self.obs[:, 24:31] = torch.tensor(pd)
+        self.obs[:, 31:34] = torch.tensor(vd)
+        self.obs[:, 34:41] = self.pforces
         return self.obs
 
     def calculate_metrics(self) -> None:
@@ -209,38 +197,17 @@ class SawyerTask(BaseTask):
             j_vel[i] = self.obs[:, ind+1]
 
 
-        hand_pos = torch.zeros(7)
-        hand_pos[0] = self.obs[:, 14]
-        hand_pos[1] = self.obs[:, 15]
-        hand_pos[2] = self.obs[:, 16]
-        hand_pos[3] = self.obs[:, 17]
-        hand_pos[4] = self.obs[:, 18]
-        hand_pos[5] = self.obs[:, 19]
-        hand_pos[6] = self.obs[:, 20]
-
-        hand_vel = torch.zeros(3)
-        hand_vel[0] = self.obs[:, 21]
-        hand_vel[1] = self.obs[:, 22] 
-        hand_vel[2] = self.obs[:, 23]
+        hand_pos = self.obs[:, 14:21]
+        hand_vel = self.obs[:, 21:24]
 
 
         # compute penalty based on joint velocities
         # get trajectories and errors
-        pd = torch.zeros(7)
-        vd = torch.zeros(3)
-        pd[0] = self.obs[:, 24]
-        pd[1] = self.obs[:, 25]
-        pd[2] = self.obs[:, 26]
-        pd[3] = self.obs[:, 27]
-        pd[4] = self.obs[:, 28]
-        pd[5] = self.obs[:, 29]
-        pd[6] = self.obs[:, 30]
-        vd[0] = self.obs[:, 31]
-        vd[1] = self.obs[:, 32]
-        vd[2] = self.obs[:, 33]
-        pe = torch.sum(torch.abs(hand_pos- pd))
+        pd = self.obs[:, 24:31]
+        vd = self.obs[:, 31:34]
+        pe_position = torch.sum(torch.abs(hand_pos[:,0:3]- pd[:,0:3]))
+        pe_pose = torch.sum(torch.abs(hand_pos[:,3:]- pd[:,3:]))
         ve = torch.sum(torch.abs(hand_vel - vd))
-
         limits = self._sawyer.get_dof_limits()[:, self._joint_indices, :]
         frac = torch.zeros(7)
         for i in range(7):
@@ -257,13 +224,30 @@ class SawyerTask(BaseTask):
         klog = lambda x, l: 2 / (torch.exp(x * l) + torch.exp(-x * l))
 
         forces = self._sawyer.get_applied_joint_efforts()[:, self._joint_indices]
+        jerk = (forces - self.pforces) * 100
+        self.pforces = forces
+
+        for i in range(7):
+            upper = self._max_torque[0][i]
+            jerk[:, i] = jerk[:, i] / (upper* 2) / 100
         for i in range(7):
             forces[:, i] = torch.abs(forces[:, i] / self._max_torque[0][i])
 
-
-        reward = self.w * klog(pe, self.l1) + (1 - self.w) * klog(ve, self.l2) - 1 - (1/7) * torch.sum(forces) - (1/14) * torch.sum(frac)
-        reward = torch.where(hand_pos[2] < 0.5, torch.ones_like(reward) * -5.0, reward)
-
+        position_reward = klog(pe_position, self.l1) - 1
+        pose_reward = klog(pe_pose,self.l2) - 1
+        ve_reward = klog(ve, self.l3) - 1
+        force_reward = -(1/7) * torch.sum(forces)
+        joint_limit_reward = -(1/7) * torch.sum(frac)
+        jerk_reward = -(1/np.sqrt(7)) * torch.norm(jerk)
+        reward = 0.6 * position_reward + 0.4 * ve_reward + pose_reward + 0.07 * jerk_reward + 0.025 * (force_reward + joint_limit_reward)
+        '''
+        print("REWARDS")
+        print("   Position:", 0.6 * pe_position)
+        print("Quarternion:", 100 * pe_pose)
+        print("   Velocity:", 0.4 * ve)
+        '''
+        reward = torch.where(hand_pos[:,2] < 0.5, torch.ones_like(reward) * -50, reward)
+        #print("      Total:", reward)
         #reward = klog() - 0.002 * torch.norm(self._sawyer.get_applied_joint_efforts())
         #reward = torch.where(reset, torch.ones_like(reward) * -2.0, reward)
         #reward = torch.where(hand_pos[6] < 0, torch.ones_like(reward) * -1.0, reward)
@@ -279,32 +263,12 @@ class SawyerTask(BaseTask):
             j_pos[i] = self.obs[:, ind]
             j_vel[i] = self.obs[:, ind+1]
 
-        hand_pos = torch.zeros(7)
-        hand_pos[0] = self.obs[:, 14]
-        hand_pos[1] = self.obs[:, 15]
-        hand_pos[2] = self.obs[:, 16]
-        hand_pos[3] = self.obs[:, 17]
-        hand_pos[4] = self.obs[:, 18]
-        hand_pos[5] = self.obs[:, 19]
-        hand_pos[6] = self.obs[:, 20]
+        hand_pos = self.obs[:, 14:21]
 
-        hand_vel = torch.zeros(3)
-        hand_vel[0] = self.obs[:, 21]
-        hand_vel[1] = self.obs[:, 22] 
-        hand_vel[2] = self.obs[:, 23]
+        hand_vel = self.obs[:, 21:24]
 
-        pd = torch.zeros(7)
-        vd = torch.zeros(3)
-        pd[0] = self.obs[:, 24]
-        pd[1] = self.obs[:, 25]
-        pd[2] = self.obs[:, 26]
-        pd[3] = self.obs[:, 27]
-        pd[4] = self.obs[:, 28]
-        pd[5] = self.obs[:, 29]
-        pd[6] = self.obs[:, 30]
-        vd[0] = self.obs[:, 31]
-        vd[1] = self.obs[:, 32]
-        vd[2] = self.obs[:, 33]
+        pd = self.obs[:, 24:31]
+        vd = self.obs[:, 31:34]
 
         pe = torch.sum(torch.abs(hand_pos- pd))
         ve = torch.sum(torch.abs(hand_vel - vd))
@@ -321,18 +285,18 @@ class SawyerTask(BaseTask):
         # reset if sawyer joint velocities too high, dof limits exceeded, or trajectory finished
         # resets = torch.where(torch.max(torch.abs(j_vel)) > self._reset_vel, 1, 0)
         '''
-        print("oof")
-        print(hand_pos)
-        print(pd)
-        print(hand_vel)
-        print(vd)
+        print("Time",time)
+        print("HandPos",hand_pos)
+        print("PosDesired",pd)
+        print("HandVel",hand_vel)
+        print("VelDesired",vd)
 
-        print("error")
-        print(pe)
-        print(ve)
+        print("ERROR")
+        print("PosErr",pe)
+        print("VelErr",ve)
         '''
         resets = torch.where(time > 5, 1, 0)
-        resets = torch.where(hand_pos[2] < 0.5, 1, resets)
+        resets = torch.where(hand_pos[:,2] < 0.5, 1, resets)
         #resets = torch.where(pe > 5, 1, resets)
         #resets = torch.where(ve > 5, 1, resets)
         

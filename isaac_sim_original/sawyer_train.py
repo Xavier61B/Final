@@ -27,9 +27,9 @@ model = PPO(
     env,
     n_steps=500,
     batch_size=250,
-    n_epochs=20,
-    learning_rate=0.001,
-    gamma=0.8,
+    n_epochs=10,
+    learning_rate=0.02,
+    gamma=0.2,
     device="cuda:0",
     ent_coef=0,
     vf_coef=0.5,
@@ -37,7 +37,7 @@ model = PPO(
     verbose=1,
     tensorboard_log="./sawyer_tensorboard",
 )
-model.learn(total_timesteps=200000)
+model.learn(total_timesteps=300000)
 model.save("ppo_sawyer")
 
 env.close()
