@@ -23,7 +23,7 @@ class SawyerTask(BaseTask):
     ) -> None:
 
         # task-specific parameters
-        self._sawyer_position = [0.0, 0.0, 0.0]
+        self._sawyer_position = [0.0, 0.0, 1]
 
         # values used for defining RL buffers
         self._num_observations = 34
@@ -75,7 +75,7 @@ class SawyerTask(BaseTask):
         # set default camera viewport position and target
         self.set_initial_camera_params()
 
-    def set_initial_camera_params(self, camera_position=[3, 3, 1], camera_target=[0, 0, 0]):
+    def set_initial_camera_params(self, camera_position=[3, 3, 2], camera_target=[0, 0, 1]):
         set_camera_view(eye=camera_position, target=camera_target, camera_prim_path="/OmniverseKit_Persp")
 
     def post_reset(self):
@@ -249,7 +249,8 @@ class SawyerTask(BaseTask):
 
             center = (lower + upper)/ 2
 
-            frac[i] = torch.abs(j_pos[i] - center) / (upper - lower)
+            frac[i] = 2 * (torch.abs(j_pos[i] - center) / (upper - lower))
+            frac[i] = (frac[i]) ** 4
 
 
         # compute reward based on gripper pose and position vs trajectory, use get_current_time() and self.start_time
@@ -257,11 +258,11 @@ class SawyerTask(BaseTask):
 
         forces = self._sawyer.get_applied_joint_efforts()[:, self._joint_indices]
         for i in range(7):
-            forces[:, i] = forces[:, i] / self._max_torque[0][i]
+            forces[:, i] = torch.abs(forces[:, i] / self._max_torque[0][i])
 
 
-        reward = self.w * klog(pe, self.l1) + (1 - self.w) * klog(ve, self.l2) - 1 - (1/7) * torch.sum(torch.abs(forces)) - (1/14) * torch.sum(torch.abs(frac))
-
+        reward = self.w * klog(pe, self.l1) + (1 - self.w) * klog(ve, self.l2) - 1 - (1/7) * torch.sum(forces) - (1/14) * torch.sum(frac)
+        reward = torch.where(hand_pos[2] < 0.5, torch.ones_like(reward) * -5.0, reward)
 
         #reward = klog() - 0.002 * torch.norm(self._sawyer.get_applied_joint_efforts())
         #reward = torch.where(reset, torch.ones_like(reward) * -2.0, reward)
@@ -331,7 +332,7 @@ class SawyerTask(BaseTask):
         print(ve)
         '''
         resets = torch.where(time > 5, 1, 0)
-        resets = torch.where(hand_pos[2] < 0, 1, resets)
+        resets = torch.where(hand_pos[2] < 0.5, 1, resets)
         #resets = torch.where(pe > 5, 1, resets)
         #resets = torch.where(ve > 5, 1, resets)
         
