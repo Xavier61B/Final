@@ -40,11 +40,9 @@ class SawyerTask(BaseTask):
         self.observation_space = spaces.Box(np.ones(self._num_observations) * -np.Inf, np.ones(self._num_observations) * np.Inf)
 
         # logistic smoothing kernel sensitiity parameter and relevance parameter for position vs velocity tracking
-        self.l1 = 10
-        self.l2 = 3
-        self.l3 = 20
-        self.w = 0.6
-
+        self.l1 = 8
+        self.l2 = 2
+        self.l3 = 16
         # reset max joint velocity
         self._reset_vel = 1.328 # 1.328
         self.pre_pos = torch.zeros(3)
@@ -205,8 +203,10 @@ class SawyerTask(BaseTask):
         # get trajectories and errors
         pd = self.obs[:, 24:31]
         vd = self.obs[:, 31:34]
+
+        pe = torch.sum(torch.abs(hand_pos- pd))
         pe_position = torch.sum(torch.abs(hand_pos[:,0:3]- pd[:,0:3]))
-        pe_pose = torch.sum(torch.abs(hand_pos[:,3:]- pd[:,3:]))
+        pe_quarternion = torch.sum(torch.abs(hand_pos[:,3:]- pd[:,3:]))
         ve = torch.sum(torch.abs(hand_vel - vd))
         limits = self._sawyer.get_dof_limits()[:, self._joint_indices, :]
         frac = torch.zeros(7)
@@ -217,7 +217,7 @@ class SawyerTask(BaseTask):
             center = (lower + upper)/ 2
 
             frac[i] = 2 * (torch.abs(j_pos[i] - center) / (upper - lower))
-            frac[i] = (frac[i]) ** 4
+            frac[i] = (frac[i]) ** 6
 
 
         # compute reward based on gripper pose and position vs trajectory, use get_current_time() and self.start_time
@@ -232,21 +232,22 @@ class SawyerTask(BaseTask):
             jerk[:, i] = jerk[:, i] / (upper* 2) / 100
         for i in range(7):
             forces[:, i] = torch.abs(forces[:, i] / self._max_torque[0][i])
-
-        position_reward = klog(pe_position, self.l1) - 1
-        pose_reward = klog(pe_pose,self.l2) - 1
-        ve_reward = klog(ve, self.l3) - 1
+        position_reward = (klog(pe_position,self.l1) - 1) * 0.6
+        quarternion_reward = (klog(pe_quarternion,self.l2) - 1) * 0.4
+        pose_reward = (position_reward + quarternion_reward) * 2
+        ve_reward = (klog(ve, self.l3) - 1) * 1
         force_reward = -(1/7) * torch.sum(forces)
-        joint_limit_reward = -(1/7) * torch.sum(frac)
-        jerk_reward = -(1/np.sqrt(7)) * torch.norm(jerk)
-        reward = 0.6 * position_reward + 0.4 * ve_reward + pose_reward + 0.07 * jerk_reward + 0.025 * (force_reward + joint_limit_reward)
-        '''
-        print("REWARDS")
-        print("   Position:", 0.6 * pe_position)
-        print("Quarternion:", 100 * pe_pose)
-        print("   Velocity:", 0.4 * ve)
-        '''
-        reward = torch.where(hand_pos[:,2] < 0.5, torch.ones_like(reward) * -50, reward)
+        joint_limit_reward = -(4/7) * torch.sum(frac)
+        jerk_reward = -(8/np.sqrt(7)) * torch.norm(jerk)
+        reward = pose_reward + ve_reward + joint_limit_reward + jerk_reward
+        
+        #print("REWARDS")
+        #print("       Pose:", pose_reward.item())
+        #print("   Velocity:", ve_reward.item())
+        #print("Joint Limit:", joint_limit_reward.item())
+        #print("       Jerk:", jerk_reward.item())
+        
+        #reward = torch.where(hand_pos[:,2] < 0.5, torch.ones_like(reward) * -500, reward)
         #print("      Total:", reward)
         #reward = klog() - 0.002 * torch.norm(self._sawyer.get_applied_joint_efforts())
         #reward = torch.where(reset, torch.ones_like(reward) * -2.0, reward)
@@ -296,7 +297,9 @@ class SawyerTask(BaseTask):
         print("VelErr",ve)
         '''
         resets = torch.where(time > 5, 1, 0)
-        resets = torch.where(hand_pos[:,2] < 0.5, 1, resets)
+        #resets = torch.where(hand_pos[:,2] < 0.5, 1, resets)
+        #if (hand_pos[:,2] < 0.5):
+        #    print("RESET DUE TO HAND POSITION LOW")
         #resets = torch.where(pe > 5, 1, resets)
         #resets = torch.where(ve > 5, 1, resets)
         
