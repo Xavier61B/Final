@@ -104,7 +104,7 @@ class SawyerTask(BaseTask):
             jo = int(self._joint_indices[i].item())
             upper = self._sawyer.get_dof_limits()[:, jo, 1]
             lower = self._sawyer.get_dof_limits()[:, jo, 0]
-            dof_pos[:, jo] = torch.tensor([tuck[i]]) + torch.rand(1) * 0.04 - 0.02 #(upper - lower) * torch.rand(num_resets, device=self._device) + lower
+            dof_pos[:, jo] = torch.tensor([tuck[i]]) #+ torch.rand(1) * 0.04 - 0.02 #(upper - lower) * torch.rand(num_resets, device=self._device) + lower
 
         # zero all DOF velocities
         dof_vel = torch.zeros((num_resets, self._sawyer.num_dof), device=self._device)# + (torch.rand(8) * 0.2 - 0.1)
