@@ -123,7 +123,7 @@ class SawyerTask(BaseTask):
         z = np.random.rand(2,1) * 0.5 + 0.25
 
         pt = np.hstack((x, y ,z))
-        self.trajectory = LinearTrajectory(hand_pos, hand_pos + np.array([0.0, 0.0, -0.2]), 2)
+        self.trajectory = LinearTrajectory(hand_pos, hand_pos + np.array([0.0, 0.0, 0.2]), 2)
         self.pforces = torch.zeros(7)
 
     def pre_physics_step(self, actions) -> None:
