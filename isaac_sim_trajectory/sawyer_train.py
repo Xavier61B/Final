@@ -37,7 +37,7 @@ model = PPO(
     verbose=1,
     tensorboard_log="./sawyer_tensorboard",
 )
-model.learn(total_timesteps=5000000)
+model.learn(total_timesteps=100000)
 model.save("ppo_sawyer")
 
 env.close()

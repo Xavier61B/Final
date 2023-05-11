@@ -40,7 +40,7 @@ class SawyerTask(BaseTask):
         self.observation_space = spaces.Box(np.ones(self._num_observations) * -np.Inf, np.ones(self._num_observations) * np.Inf)
 
         # logistic smoothing kernel sensitiity parameter and relevance parameter for position vs velocity tracking
-        self.l1 = 8
+        self.l1 = 4
         self.l2 = 2
         self.l3 = 16
         # reset max joint velocity
@@ -241,7 +241,7 @@ class SawyerTask(BaseTask):
         #jerk_reward = -(2/np.sqrt(7)) * torch.norm(jerk)
         jerk_reward = - (1/7) * torch.sum(torch.abs(jerk))
         time = torch.tensor(self.simulation.current_time - self.start_time)
-        reward = 2*position_reward + jerk_reward
+        reward = position_reward + 4 * jerk_reward
         #print("REWARDS")
         #print("       Pose:", pose_reward.item())
         #print("       Time:", time)
