@@ -25,8 +25,8 @@ from stable_baselines3 import PPO
 model = PPO(
     "MlpPolicy",
     env,
-    n_steps=200,
-    batch_size=200,
+    n_steps=300,
+    batch_size=300,
     n_epochs=20,
     learning_rate=0.001,
     gamma=0,
